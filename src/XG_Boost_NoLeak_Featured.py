@@ -58,8 +58,20 @@ def preprocess(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, list]:
         'condition_Radial_100m',
         'condition_InTrack_500m', 'condition_CrossTrack_500m',
         'condition_sat2posUnc_1km', 'condition_sat2Obs_25',
-        'hours_to_tca'
-    ]
+        'hours_to_tca',
+        # Engineered features
+        # 'log_cdmPc',
+        # 'inv_miss_distance',
+        'tca_bin',
+        'same_sat_type',
+        'is_debris_pair',
+        'close_all_axes',
+        'risky_uncertainty',
+        'distance_ratio',
+        'object_type_match'
+        ]
+
+    
 
     X = df[features].copy()
     y = df['HighRisk'].copy()
@@ -139,7 +151,7 @@ def train_and_evaluate(X: pd.DataFrame, y: pd.Series, features: list) -> None:
     for feat, imp in sorted(zip(features, importance), key=lambda x: -x[1]):
         print(f"{feat}: {imp:.4f}")
 
-DATA_PATH = os.path.join("data", "Merged_DATA.xlsx")
+DATA_PATH = os.path.join("data", "Merged_Featured_DATA.xlsx")
 def main():
 
     df = load_data(DATA_PATH)

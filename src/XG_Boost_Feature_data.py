@@ -1,6 +1,4 @@
-##- You now have a model that can flag risky conjunctions based on real features.
-##- It can be used to prioritize CDMs for review, even before Pc is computed.
-##- You can tune the threshold to balance recall vs false positives depending on operator workload.
+# src/train_xgb_small.py
 
 import os
 import numpy as np
@@ -51,14 +49,27 @@ def preprocess(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, list]:
 
     # 6) Feature list
     features = [
-        'SAT1_CDM_TYPE', 'SAT2_CDM_TYPE',
-        'rso1_objectType', 'rso2_objectType',
-        'org1_displayName', 'org2_displayName',
-        'condition_24H_tca_72H', 
-        'condition_Radial_100m',
-        'condition_InTrack_500m', 'condition_CrossTrack_500m',
-        'condition_sat2posUnc_1km', 'condition_sat2Obs_25',
-        'hours_to_tca'
+    # Original features
+    'cdmMissDistance', 'cdmPc',
+    'SAT1_CDM_TYPE', 'SAT2_CDM_TYPE',
+    'rso1_objectType', 'rso2_objectType',
+    'org1_displayName', 'org2_displayName',
+    'condition_24H_tca_72H',
+    'condition_Radial_100m',
+    'condition_InTrack_500m', 'condition_CrossTrack_500m',
+    'condition_sat2posUnc_1km', 'condition_sat2Obs_25',
+    'hours_to_tca',
+
+    # Engineered features
+    'log_cdmPc',
+    'inv_miss_distance',
+    'tca_bin',
+    'same_sat_type',
+    'is_debris_pair',
+    'close_all_axes',
+    'risky_uncertainty',
+    'distance_ratio',
+    'object_type_match'
     ]
 
     X = df[features].copy()
@@ -71,8 +82,6 @@ def preprocess(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, list]:
 
     return X, y, features
 
-
-# Gives more importance to HighRisk class, not to columns.
 
 def compute_scale_pos_weight(y: pd.Series) -> float:
     pos = y.sum()
@@ -105,7 +114,6 @@ def train_and_evaluate(X: pd.DataFrame, y: pd.Series, features: list) -> None:
         scale_pos_weight=spw
     )
     print(X_train , y_train)
-    
     model.fit(
         X_train, y_train,
         eval_set=[(X_test, y_test)],
@@ -139,7 +147,7 @@ def train_and_evaluate(X: pd.DataFrame, y: pd.Series, features: list) -> None:
     for feat, imp in sorted(zip(features, importance), key=lambda x: -x[1]):
         print(f"{feat}: {imp:.4f}")
 
-DATA_PATH = os.path.join("data", "Merged_DATA.xlsx")
+DATA_PATH = os.path.join("data", "Merged_Featured_DATA.xlsx")
 def main():
 
     df = load_data(DATA_PATH)
