@@ -30,24 +30,14 @@ def load_data(path: str) -> pd.DataFrame:
 
 def preprocess(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, list]:
     
-    # 3) Encode categorical features
     categorical_cols = [
         'SAT1_CDM_TYPE', 'SAT2_CDM_TYPE',
         'rso1_objectType', 'rso2_objectType',
         'org1_displayName', 'org2_displayName'
     ]
+    df[categorical_cols] = df[categorical_cols].astype("category")
 
-    for col in categorical_cols:
-        le = LabelEncoder()
-        df[col] = le.fit_transform(df[col].astype(str))
-
-    
-    # 5) Target: HighRisk
-    df['HighRisk'] = (
-        (df['cdmPc'] > 1e-6) & (df['cdmMissDistance'] < 2000)
-    ).astype(int)
-
-    # 6) Feature list
+    # 2) Feature list
     features = [
         'cdmMissDistance', 'cdmPc',
         'SAT1_CDM_TYPE', 'SAT2_CDM_TYPE',
@@ -98,8 +88,10 @@ def train_and_evaluate(X: pd.DataFrame, y: pd.Series, features: list) -> None:
         colsample_bytree=0.8,
         reg_lambda=1.0,
         random_state=RANDOM_STATE,
-        eval_metric='logloss',
-        scale_pos_weight=spw
+        eval_metric='aucpr',    # BEST for rare events
+        scale_pos_weight=spw,
+        tree_method="hist",
+        enable_categorical=True
     )
     print(X_train , y_train)
     model.fit(

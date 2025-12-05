@@ -4,8 +4,8 @@ import numpy as np
 
 pd.set_option('display.max_columns',200)
 pd.set_option('display.width',120)
-
-Data_Path = os.path.join('data','Merged_DATA.xlsx')
+# Default for Merged_DATA
+Data_Path = os.path.join('data','Merged_Featured_DATA.xlsx')
 Plot_Path = os.path.join('outputs','Plots')
 os.makedirs(Plot_Path , exist_ok=True)
 print(Data_Path)
@@ -80,16 +80,20 @@ plt.show()
 
 
 # # - - Correlations - - # # 
-print(df.info())
 corr = df[num_cols].corr(method='spearman')
 print("\n SPearman Correlation :")
-corrs = (
-    corr.abs().unstack().dropna().sort_values(ascending=False)
-)
+# corrs = (
+#     corr.abs().unstack().dropna().sort_values(ascending=False)
+# )
+target_corr = corr['HighRisk'].abs().sort_values(ascending=False)
+top_features = target_corr[target_corr > 0.1].index.tolist()  # threshold can be adjusted
+
 
 plt.figure(figsize=(10,8))
-sns.heatmap(corr , cmap='coolwarm' , center = 0, annot = True)
-plt.title('Spearman Correlation Heatmap')
-plt.savefig(os.path.join(Plot_Path,'Correlation Heatmap.png'))
+sns.heatmap(corr.loc[top_features, top_features], cmap='coolwarm', center=0, annot=True)
+plt.title('Spearman Correlation (Top Features)')
+plt.tight_layout()
+plt.savefig(os.path.join(Plot_Path, 'Correlation_Heatmap_Top.png'))
 plt.show()
 plt.close()
+

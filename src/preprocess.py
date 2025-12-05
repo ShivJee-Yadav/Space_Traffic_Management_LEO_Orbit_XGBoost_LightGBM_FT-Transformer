@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+from sklearn.preprocessing import LabelEncoder
 
 DATA_DIR = "data"
 RAW_FILES = [
@@ -63,10 +64,19 @@ def basic_clean(df: pd.DataFrame) -> pd.DataFrame:
     if 'rso2_objectType' in df.columns:
         df['rso2_objectType'] = df['rso2_objectType'].fillna("DEBRIS")
     
+    # # 3)  categorical features Conversion to category 
+    # categorical_cols = [
+    #     'SAT1_CDM_TYPE', 'SAT2_CDM_TYPE',
+    #     'rso1_objectType', 'rso2_objectType',
+    #     'org1_displayName', 'org2_displayName'
+    # ]
+    # df[categorical_cols] = df[categorical_cols].astype("category")
     
-    # inserting Target Variable
-    df['HighRisk'] = ((df['cdmPc'] > 1e-6) & (df['cdmMissDistance'] < 2000)).astype(int)
-
+    
+    # 5) Target: HighRisk
+    df['HighRisk'] = (
+        (df['cdmPc'] > 1e-6) & (df['cdmMissDistance'] < 2000)
+    ).astype(int)
     print("\nAfter basic_clean:")
     print(df.info())
     return df
@@ -76,6 +86,7 @@ def save_clean_data(df : pd.DataFrame , data_dir:str, filename:str)-> str:
     # save Merge and Clean data
     output_path = os.path.join(data_dir , filename)
     print(f"\n Saving Cleanding data to :{output_path}")
+    print(df.info())
     df.to_excel(output_path, index=False)
     return output_path
 
