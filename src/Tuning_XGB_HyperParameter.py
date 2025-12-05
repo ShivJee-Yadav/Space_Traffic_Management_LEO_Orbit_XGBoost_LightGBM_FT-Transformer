@@ -130,7 +130,8 @@ def tune_model(df, feature_list, model_name):
 
     # Save results
     result_path = f"{model_name}_best_params.txt"
-    with open(result_path, "w") as f:
+    result_DIR = os.path.join('outputs','Best_HyperParameter',result_path)
+    with open(result_DIR, "w") as f:
         f.write(f"Best AUC-PR: {study.best_value}\n")
         for k, v in study.best_params.items():
             f.write(f"{k}: {v}\n")
@@ -151,5 +152,5 @@ df[categorical_cols] = df[categorical_cols].astype("category")
    
 # tune_model(df, XG_Boost, "XGBoost_Original")
 tune_model(df, XG_Boost_NoLeak, "XGBoost_NoLeak")
-tune_model(df, XG_Boost_Featured, "XGBoost_Featured")
+# tune_model(df, XG_Boost_Featured, "XGBoost_Featured")
 # tune_model(df, XG_Boost_NoLeak_Featured, "XGBoost_NoLeak_Featured")
