@@ -97,3 +97,8 @@ This is a strong, balanced FT‑Transformer. -->
     Pc_pred (B, 1)
     HighRisk_pred (B, 1)
  -->
+
+
+ FT‑Transformer is a multi‑task model:
+Task 1 — Predict Pc (regression)
+Task 2 — Predict HighRisk (classification)

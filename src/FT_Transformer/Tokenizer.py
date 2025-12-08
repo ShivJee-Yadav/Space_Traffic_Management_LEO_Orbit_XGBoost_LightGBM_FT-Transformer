@@ -25,6 +25,7 @@ class FeatureTokenizer(nn.Module):
         self.d_model = d_model
         self.num_embed_miss = nn.Linear(1,d_model)
         self.num_embed_pc = nn.Linear(1,d_model)
+        self.num_embed_hours = nn.Linear(1, d_model)
         self.cat_embed_sat1 = nn.Embedding(num_categories_sat1 , d_model)
         self.cat_embed_sat2 = nn.Embedding(num_categories_sat2 , d_model)
         self.cat_embed_obj1 = nn.Embedding(num_categories_obj1 , d_model)
@@ -38,6 +39,7 @@ class FeatureTokenizer(nn.Module):
             self ,
             miss_distance,
             pc,
+            hours_to_tca,
             sat1_type,
             sat2_type,
             obj1_type,
@@ -62,6 +64,7 @@ class FeatureTokenizer(nn.Module):
         B= miss_distance.size(0)
         t_miss = self.num_embed_miss(miss_distance)
         t_pc = self.num_embed_pc(pc)
+        t_hours = self.num_embed_hours(hours_to_tca)
         t_sat1 = self.cat_embed_sat1(sat1_type)      # (B, d_model)
         t_sat2 = self.cat_embed_sat2(sat2_type)      # (B, d_model)
         t_obj1 = self.cat_embed_obj1(obj1_type)      # (B, d_model)
@@ -71,7 +74,7 @@ class FeatureTokenizer(nn.Module):
         t_bool = self.bool_embed(bool_features)      # (B, d_model)
 
         # stack all tokens 
-        tokens = torch.stack([t_miss, t_pc , t_sat1 , t_sat2 , t_obj1 , t_obj2 , t_org1 , t_org2 , t_bool],
+        tokens = torch.stack([t_miss, t_pc , t_hours, t_sat1 , t_sat2 , t_obj1 , t_obj2 , t_org1 , t_org2 , t_bool],
                            dim =1 )
         
         CLS = self.CLS.expand(B,1,self.d_model)

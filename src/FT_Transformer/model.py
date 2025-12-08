@@ -47,6 +47,7 @@ class FTTransformer(nn.Module):
         self,
         miss_distance,
         pc,
+        hours_to_tca,
         sat1_type,
         sat2_type,
         obj1_type,
@@ -59,6 +60,7 @@ class FTTransformer(nn.Module):
         tokens = self.tokenizer(
             miss_distance,
             pc,
+            hours_to_tca,
             sat1_type,
             sat2_type,
             obj1_type,

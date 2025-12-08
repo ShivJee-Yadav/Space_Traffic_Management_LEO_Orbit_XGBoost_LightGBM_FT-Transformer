@@ -3,16 +3,17 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
 DATA_DIR = "data"
+OUTPUT_DIR = "Merged_DATA.xlsx"
 RAW_FILES = [
     "CZ_6A_Events_2024-08-06.xlsx",
-    "CZ_6A_Events_2024-09-06.xlsx",
-    "CZ_6A_Events_2024-10-06.xlsx",
+    # "CZ_6A_Events_2024-09-06.xlsx",
+    # "CZ_6A_Events_2024-10-06.xlsx",
     # "CZ_6A_Events_2025-02-06.xlsx",
     # "CZ_6A_Events_2025-06-06.xlsx",
     # "CZ_6A_Events_2025-08-06.xlsx",
 ]
 
-OUTPUT_DIR = "Merged_DATA.xlsx"
+
 
 def load_and_merge(data_dir : str , file_list:list[str]) -> pd.DataFrame:
     dfs = []
@@ -32,7 +33,7 @@ def basic_clean(df: pd.DataFrame) -> pd.DataFrame:
     - Standardize column names
     - Convert timestamps
     - Fill a few obvious missing values
-    (We keep it simple here; more cleaning will come later.)
+   
     """
     # 1) Basic imputations
     df['cdmPc'] = df['cdmPc'].fillna(df['cdmPc'].median())
@@ -64,16 +65,9 @@ def basic_clean(df: pd.DataFrame) -> pd.DataFrame:
     if 'rso2_objectType' in df.columns:
         df['rso2_objectType'] = df['rso2_objectType'].fillna("DEBRIS")
     
-    # # 3)  categorical features Conversion to category 
-    # categorical_cols = [
-    #     'SAT1_CDM_TYPE', 'SAT2_CDM_TYPE',
-    #     'rso1_objectType', 'rso2_objectType',
-    #     'org1_displayName', 'org2_displayName'
-    # ]
-    # df[categorical_cols] = df[categorical_cols].astype("category")
+   
     
-    
-    # 5) Target: HighRisk
+    # 2) Target: HighRisk
     df['HighRisk'] = (
         (df['cdmPc'] > 1e-6) & (df['cdmMissDistance'] < 2000)
     ).astype(int)
@@ -83,6 +77,7 @@ def basic_clean(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def save_clean_data(df : pd.DataFrame , data_dir:str, filename:str)-> str:
+   
     # save Merge and Clean data
     output_path = os.path.join(data_dir , filename)
     print(f"\n Saving Cleanding data to :{output_path}")
@@ -90,10 +85,10 @@ def save_clean_data(df : pd.DataFrame , data_dir:str, filename:str)-> str:
     df.to_excel(output_path, index=False)
     return output_path
 
-
+# OUTPUT_DIR = "Merged_DATA.xlsx"
 def main():
+    
     #1 Load and merge
-
     merged_data = load_and_merge(DATA_DIR , RAW_FILES)
 
     # Clean data
@@ -104,6 +99,5 @@ def main():
 
 
 # - if you run python src/preprocess.py, it will execute main().
-
 if __name__ == "__main__":
     main()

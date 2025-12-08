@@ -4,8 +4,6 @@ import numpy as np
 # FIle size increased by 10 mb after Feature Engineering
 # Paths
 INPUT_PATH = os.path.join("data", "Merged_DATA.xlsx")
-OUTPUT_PATH = os.path.join("data", "Merged_Featured_DATA.xlsx")
-
 # Load cleaned data
 df = pd.read_excel(INPUT_PATH)
 
@@ -71,7 +69,10 @@ df['object_type_match'] = (
 # -----------------------------
 print(df.info())
 print("Writing File")
-# df.to_excel(OUTPUT_PATH, index=False)
+
+OUTPUT_PATH = os.path.join("data", "Merged_Featured_DATA.xlsx")
+df.to_excel(OUTPUT_PATH, index=False)
+
 print(f"Feature engineering complete. Saved to: {OUTPUT_PATH}")
 
 
