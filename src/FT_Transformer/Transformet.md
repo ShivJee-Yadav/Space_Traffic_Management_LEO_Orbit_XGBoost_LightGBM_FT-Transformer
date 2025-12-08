@@ -49,3 +49,51 @@ But instead of doing this once, the model does it multiple times in parallel —
 - Pc regression
 - HighRisk classification
 This is a strong, balanced FT‑Transformer. -->
+
+
+
+<!-- Encoder .py DAY 2 -->
+<!-- A Transformer Encoder layer has four components:
+- LayerNorm :LayerNorm normalizes each token vector so the model trains smoothly.
+- Multi‑Head Self‑Attention
+- Feed‑Forward Network (FFN)
+- Residual Connections -->
+
+# Input tokens (B, T, 64)
+↓
+# LayerNorm
+↓
+# MultiHeadAttention
+↓
+# Add residual
+↓
+# LayerNorm
+# ↓
+# FeedForward
+# ↓
+# Add residual
+# ↓
+# Output tokens (B, T, 64)
+
+
+
+# Full FT atchitecture  multi‑task model.
+
+<!-- Input features
+      ↓
+      FeatureTokenizer
+      ↓
+      Tokens (B, T, 64)
+      ↓
+      TransformerEncoder (4 layers)
+      ↓
+      CLS token extracted (B, 64)
+      ↓
+      Two heads:
+         1. Regression head → predict Pc
+         2. Classification head → predict HighRisk
+      ↓
+      Outputs:
+    Pc_pred (B, 1)
+    HighRisk_pred (B, 1)
+ -->

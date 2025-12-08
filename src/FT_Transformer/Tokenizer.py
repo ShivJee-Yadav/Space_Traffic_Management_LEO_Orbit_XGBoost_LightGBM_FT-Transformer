@@ -15,13 +15,14 @@ class FeatureTokenizer(nn.Module):
                  d_model = 64,
                  num_categories_sat1 =3,
                  num_categories_sat2 =3,
-                 num_categories_obj1 =2,
-                 num_categories_obj2 =2,
+                 num_categories_obj1 =3,
+                 num_categories_obj2 =3,
                  num_categories_org1 = 10,
                  num_categories_org2 = 10,
                  num_boolean_features = 10
     ):
-        super().init__()
+        super().__init__()
+        self.d_model = d_model
         self.num_embed_miss = nn.Linear(1,d_model)
         self.num_embed_pc = nn.Linear(1,d_model)
         self.cat_embed_sat1 = nn.Embedding(num_categories_sat1 , d_model)
@@ -73,6 +74,6 @@ class FeatureTokenizer(nn.Module):
         tokens = torch.stack([t_miss, t_pc , t_sat1 , t_sat2 , t_obj1 , t_obj2 , t_org1 , t_org2 , t_bool],
                            dim =1 )
         
-        CLS = self.CLS.expand(B,-1,-1)
-        tokens - torch.cat([CLS , tokens] , dim = 1)
+        CLS = self.CLS.expand(B,1,self.d_model)
+        tokens = torch.cat([CLS , tokens] , dim = 1)
         return tokens
