@@ -103,6 +103,6 @@ categorical_cols = [
 df[categorical_cols] = df[categorical_cols].astype("category")
 
 PredictModel(df, XG_Boost, "XG_Boost")
-# PredictModel(df, XG_Boost_NoLeak, "XG_Boost_NoLeak")
-# PredictModel(df, XG_Boost_Featured, "XG_Boost_Feature_data")
-# PredictModel(df, XG_Boost_NoLeak_Featured, "XGBoost_NoLeak_Featured")
+PredictModel(df, XG_Boost_NoLeak, "XG_Boost_NoLeak")
+PredictModel(df, XG_Boost_Featured, "XG_Boost_Feature_data")
+PredictModel(df, XG_Boost_NoLeak_Featured, "XGBoost_NoLeak_Featured")

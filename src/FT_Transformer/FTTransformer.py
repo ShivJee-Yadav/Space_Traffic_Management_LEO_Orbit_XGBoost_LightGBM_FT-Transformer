@@ -2,12 +2,23 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import pandas as pd
+import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import recall_score, average_precision_score
+from sklearn.metrics import (
+    confusion_matrix,
+    recall_score,
+    precision_score,
+    f1_score,
+    roc_auc_score,
+    classification_report
+)
+from sklearn.metrics import brier_score_loss, mean_squared_error, mean_absolute_error, r2_score
+from sklearn.metrics import precision_recall_curve, roc_curve, auc
 
 
-from FT_Transformer.dataset import SdcDataset
-from FT_Transformer.model import FTTransformer
+from dataset import SdcDataset
+from model import FTTransformer
 
 # ----------------------------------------------------
 # 1. Load the cleaned dataset created by preprocess.py
@@ -27,6 +38,7 @@ df = df.rename(columns={
     "org1_displayName": "org1",
     "org2_displayName": "org2"
 })
+print(df.info())
 df["hours_to_tca"] = df["hours_to_tca"].astype(float)
 
 # ----------------------------------------------------
@@ -94,14 +106,14 @@ val_df = df[split:]
 train_dataset = SdcDataset(train_df)
 val_dataset = SdcDataset(val_df)
 
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=32)
+train_loader = DataLoader(train_dataset, batch_size=512, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=512)
 
 # ----------------------------------------------------
 # 8. Model, Loss, Optimizer
 # ----------------------------------------------------
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# device = torch.device("cpu")
+
 model = FTTransformer(
     num_categories_sat1=num_categories_sat1,
     num_categories_sat2=num_categories_sat2,
@@ -117,11 +129,12 @@ loss_class_fn = nn.BCELoss()
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
 
-epochs = 3
+epochs = 10
 
 # ----------------------------------------------------
 # 9. Training Loop
 # ----------------------------------------------------
+print("Training Started :")
 for epoch in range(epochs):
     model.train()
     total_loss = 0.0
@@ -218,12 +231,107 @@ for epoch in range(epochs):
     class_preds_binary = (all_class_preds >= 0.5).astype(int)
 
     # compute metrics
+    
+    # --- Classification metrics (probabilities) ---
+    auc_pr = average_precision_score(all_class_labels, all_class_preds)
+    try:
+        auc_roc = roc_auc_score(all_class_labels, all_class_preds)
+    except ValueError:
+        auc_roc = float("nan")
+
+    # Threshold sweep to find best F1 and best recall subject to min precision
+    best_f1 = 0.0
+    best_f1_thr = 0.5
+    best_recall_thr = 0.5
+    best_recall = 0.0
+    min_precision_for_recall = 0.2
+
+    precisions, recalls, thrs = precision_recall_curve(all_class_labels, all_class_preds)
+    # precision_recall_curve returns len(thrs)+1 for precisions/recalls; align by ignoring last precision/recall
+    for i, thr in enumerate(np.append(thrs, 1.0)):
+        preds_thr = (all_class_preds >= thr).astype(int)
+        prec = precision_score(all_class_labels, preds_thr, zero_division=0)
+        rec = recall_score(all_class_labels, preds_thr, zero_division=0)
+        f1 = f1_score(all_class_labels, preds_thr, zero_division=0)
+        if f1 > best_f1:
+            best_f1 = f1
+            best_f1_thr = thr
+        if (prec >= min_precision_for_recall) and (rec > best_recall):
+            best_recall = rec
+            best_recall_thr = thr
+
+    # Binarize at best F1 for reporting
+    preds_best_f1 = (all_class_preds >= best_f1_thr).astype(int)
+
+    # Confusion matrix and classification report
+    cm_default = confusion_matrix(all_class_labels, class_preds_binary)
+    cm_best = confusion_matrix(all_class_labels, preds_best_f1)
+    report_default = classification_report(all_class_labels, class_preds_binary, digits=4)
+    report_best = classification_report(all_class_labels, preds_best_f1, digits=4)
+
+    # Brier score (calibration)
+    brier = brier_score_loss(all_class_labels, all_class_preds)
+
+    # Error counts
+    tn, fp, fn, tp = cm_best.ravel()
+
+    # --- Regression metrics for Pc ---
+    mse = mean_squared_error(all_pc_labels, all_pc_preds)
+    mae = mean_absolute_error(all_pc_labels, all_pc_preds)
+    rmse = np.sqrt(mse)
+    r2 = r2_score(all_pc_labels, all_pc_preds)
+    
     val_loss_avg = val_losses / len(val_loader)
     recall = recall_score(all_class_labels, class_preds_binary)
     auc_pr = average_precision_score(all_class_labels, all_class_preds)
 
-    print(f"  Val Loss: {val_loss_avg:.4f} | Recall: {recall:.4f} | AUC-PR: {auc_pr:.4f}")
+    # --- Print everything clearly ---
+    print("\n===== FT-Transformer Validation Summary =====")
+    print(f"Val Loss Avg: {val_loss_avg:.6f}")
+    print(f"AUC-PR (avg precision): {auc_pr:.6f}")
+    print(f"AUC-ROC: {auc_roc:.6f}")
+    print(f"Brier score: {brier:.6f}")
+    print(f"Best F1: {best_f1:.4f} at threshold {best_f1_thr:.3f}")
+    print(f"Best recall (prec >= {min_precision_for_recall}): {best_recall:.4f} at threshold {best_recall_thr:.3f}")
+    print("\n--- Default threshold (0.5) classification report ---")
+    print(report_default)
+    print("Confusion matrix (default 0.5):")
+    print(cm_default)
+    print("\n--- Best-F1 threshold classification report ---")
+    print(report_best)
+    print("Confusion matrix (best F1):")
+    print(cm_best)
+    print(f"\nTP: {tp}, FP: {fp}, TN: {tn}, FN: {fn}")
+    print(f"Precision (best F1): {precision_score(all_class_labels, preds_best_f1, zero_division=0):.4f}")
+    print(f"Recall (best F1): {recall_score(all_class_labels, preds_best_f1):.4f}")
+    print(f"F1 (best F1): {f1_score(all_class_labels, preds_best_f1):.4f}")
 
+    print("\n--- Regression (Pc) metrics ---")
+    print(f"MSE: {mse:.6f}")
+    print(f"MAE: {mae:.6f}")
+    print(f"RMSE: {rmse:.6f}")
+    print(f"R2: {r2:.6f}")
+
+    # Show a few top failure examples for manual inspection (requires original val_df)
+    try:
+        val_df_reset = val_df.reset_index(drop=True)
+        preds_series = pd.Series(all_class_preds, name="ft_prob")
+        labels_series = pd.Series(all_class_labels, name="label")
+        inspect_df = val_df_reset.copy()
+        inspect_df["ft_prob"] = preds_series
+        inspect_df["label"] = labels_series
+        # top false positives (high prob but label=0)
+        fp_examples = inspect_df[(inspect_df["label"]==0)].sort_values("ft_prob", ascending=False).head(5)
+        # top false negatives (low prob but label=1)
+        fn_examples = inspect_df[(inspect_df["label"]==1)].sort_values("ft_prob", ascending=True).head(5)
+        print("\nTop 5 False Positives (high prob, label=0):")
+        print(fp_examples[["ft_prob", "label"] + bool_cols + ["miss_distance", "pc", "hours_to_tca"]].to_string(index=False))
+        print("\nTop 5 False Negatives (low prob, label=1):")
+        print(fn_examples[["ft_prob", "label"] + bool_cols + ["miss_distance", "pc", "hours_to_tca"]].to_string(index=False))
+    except Exception as e:
+        print("Could not show failure examples (need val_df in scope). Error:", e)
+
+    print("=============================================\n")
 # ----------------------------------------------------
 # 10. Save Model
 # ----------------------------------------------------

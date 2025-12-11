@@ -1,226 +1,286 @@
-# Install required Python packages (run in Colab)
-# pip install -q lightgbm shap optuna joblib pandas numpy scikit-learn pyarrow matplotlib
+# LightGBM_Train.py
+# Contains four different LightGBM models trained on different feature sets:
+# LGB_Boost -> Original dataset
+# LGB_Boost_NoLeak -> Original minus cdmMissDistance and cdmPc (leakage removed)
+# LGB_Boost_Featured -> Original + engineered features
+# LGB_Boost_NoLeak_Featured -> Featured minus all Pc/missDistance dependencies
 
-# Basic imports and seed
-import os, random
-import numpy as np, pandas as pd
-SEED = 42
-os.environ["PYTHONHASHSEED"] = str(SEED)
-random.seed(SEED)
-np.random.seed(SEED)
-
-print("Setup complete. Python version:", os.sys.version.split("\n")[0])
-
-
-# Mount Google Drive (uncomment when running in Colab)
-from google.colab import drive
-drive.mount('/content/drive')
-
-# Set base path in Drive where dataset and outputs will be stored.
-DRIVE_BASE = '/content/drive/MyDrive/IGOM_ML'  # change as needed
-os.makedirs(DRIVE_BASE, exist_ok=True)
-print("DRIVE_BASE set to:", DRIVE_BASE)
-
-
-# %%
-
-# Load dataset (Parquet recommended). If you uploaded directly to session, change the path.
 import os
-default_path = os.path.join(DRIVE_BASE, 'fused_replay.parquet')
-if os.path.exists(default_path):
-    df = pd.read_parquet(default_path)
-    print("Loaded fused_replay.parquet from Drive, rows:", len(df))
-else:
-    print("No dataset at", default_path)
-    # Fallback: create a tiny synthetic dataset for demo purposes (remove for real runs)
-    print("Creating synthetic demo dataset (for code flow only). Replace with your real fused_replay.parquet")
-    n = 2000
-    rng = np.random.RandomState(SEED)
-    df = pd.DataFrame({
-        'cdm_id': np.arange(n),
-        'object_A_id': rng.randint(1000,2000,n),
-        'object_B_id': rng.randint(2000,3000,n),
-        'object_pair_id': [f"{a}_{b}" for a,b in zip(rng.randint(1000,2000,n), rng.randint(2000,3000,n))],
-        'timestamp': pd.Timestamp('2025-01-01') + pd.to_timedelta(rng.randint(0,86400*30,n), unit='s'),
-        # physics-like features
-        'range': rng.uniform(50,5000,n),  # km
-        'rel_vx': rng.normal(0,0.5,n),
-        'rel_vy': rng.normal(0,0.5,n),
-        'rel_vz': rng.normal(0,0.2,n),
-        'radar_snr': rng.uniform(0,30,n),
-        'num_tracks': rng.randint(1,8,n),
-        'catalog_age_hours': rng.uniform(0,720,n),
-        # target (rare events)
-        'collision_label': (rng.rand(n) < 0.02).astype(int)
-    })
-    print("Synthetic dataset created. Positive rate:", df['collision_label'].mean())
-
-
-# %%
-
-# Basic feature engineering examples. Extend these based on your available fields.
-df['rel_speed'] = np.sqrt(df['rel_vx']**2 + df['rel_vy']**2 + df['rel_vz']**2)
-# convert range from km to meters for intuition
-df['range_m'] = df['range'] * 1000.0
-# interaction features
-df['range_over_tracks'] = df['range_m'] / (df['num_tracks'] + 1e-6)
-df['dist_times_snr'] = df['range_m'] * (df['radar_snr'] + 1e-6)
-# temporal features
-df['hour'] = df['timestamp'].dt.hour
-df['hour_sin'] = np.sin(2*np.pi*df['hour']/24)
-df['hour_cos'] = np.cos(2*np.pi*df['hour']/24)
-
-# Fill missing values and choose features
-df.fillna(-999, inplace=True)
-feature_cols = ['range_m','rel_speed','radar_snr','num_tracks','catalog_age_hours',
-                'range_over_tracks','dist_times_snr','hour_sin','hour_cos']
-target_col = 'collision_label'
-
-print("Features ready. Example row:")
-display(df[feature_cols + [target_col]].head())
-
-
-# %%
-
-# Train LightGBM with GroupKFold to avoid leakage across object pairs.
-from sklearn.model_selection import GroupKFold
-import lightgbm as lgb
-from sklearn.metrics import roc_auc_score, average_precision_score, brier_score_loss
-
-X = df[feature_cols]
-y = df[target_col].astype(int)
-groups = df['object_pair_id']
-
-gkf = GroupKFold(n_splits=5)
-models = []
-val_preds = []
-val_trues = []
-fold = 0
-for train_idx, val_idx in gkf.split(X, y, groups=groups):
-    fold += 1
-    X_tr, X_val = X.iloc[train_idx], X.iloc[val_idx]
-    y_tr, y_val = y.iloc[train_idx], y.iloc[val_idx]
-    dtrain = lgb.Dataset(X_tr, label=y_tr)
-    dval = lgb.Dataset(X_val, label=y_val, reference=dtrain)
-    params = {
-        'objective':'binary',
-        'metric':'auc',
-        'learning_rate':0.05,
-        'num_leaves':63,
-        'max_depth':7,
-        'min_data_in_leaf':20,
-        'feature_fraction':0.8,
-        'bagging_fraction':0.8,
-        'bagging_freq':5,
-        'seed': SEED + fold,
-        'verbosity': -1
-    }
-    bst = lgb.train(params, dtrain, valid_sets=[dval], num_boost_round=2000, early_stopping_rounds=100, verbose_eval=100)
-    p_val = bst.predict(X_val, num_iteration=bst.best_iteration)
-    print(f"Fold {fold} ROC-AUC: {roc_auc_score(y_val, p_val):.4f}, PR-AUC: {average_precision_score(y_val, p_val):.4f}, Brier: {brier_score_loss(y_val, p_val):.4f}")
-    models.append(bst)
-    val_preds.append(pd.Series(p_val, index=val_idx))
-    val_trues.append(pd.Series(y_val.values, index=val_idx))
-
-# aggregate OOF predictions
-import pandas as pd
-oof_pred = pd.concat(val_preds).sort_index()
-oof_true = pd.concat(val_trues).sort_index()
-print("\nOverall OOF ROC-AUC:", roc_auc_score(oof_true, oof_pred))
-print("Overall OOF PR-AUC:", average_precision_score(oof_true, oof_pred))
-
-
-# %%
-
-# Probability calibration using sklearn's CalibratedClassifierCV on a pooled LightGBM wrapper.
-from sklearn.calibration import CalibratedClassifierCV
-from sklearn.ensemble import VotingClassifier
-from sklearn.base import BaseEstimator, ClassifierMixin
+import json
 import numpy as np
-import joblib
+import pandas as pd
 
-# Create a wrapper classifier that averages predictions from the LightGBM models
-class LGBEnsembleWrapper(BaseEstimator, ClassifierMixin):
-    def __init__(self, models):
-        self.models = models
-    def fit(self, X, y):
-        return self
-    def predict_proba(self, X):
-        preds = np.column_stack([m.predict(X, num_iteration=m.best_iteration) for m in self.models])
-        mean = preds.mean(axis=1)
-        # return two-column probability matrix
-        return np.vstack([1-mean, mean]).T
-
-# Fit calibrator on a holdout split (here we reuse a fraction of the dataset)
 from sklearn.model_selection import train_test_split
-X_train_cal, X_cal, y_train_cal, y_cal = train_test_split(X, y, test_size=0.2, random_state=SEED, stratify=y)
-ens = LGBEnsembleWrapper(models)
-calibrator = CalibratedClassifierCV(base_estimator=ens, method='isotonic', cv='prefit')
-# CalibratedClassifierCV with cv='prefit' expects base estimator already "fit" - our wrapper simply uses models
-calibrator.fit(X_cal, y_cal)
-# Evaluate calibration
-probs_cal = calibrator.predict_proba(X_cal)[:,1]
-from sklearn.metrics import brier_score_loss
-print("Calibration set Brier score:", brier_score_loss(y_cal, probs_cal))
-# Save calibrator and wrapper
-artifact = {'models': models, 'features': feature_cols, 'calibrator': calibrator}
-joblib.dump(artifact, os.path.join(DRIVE_BASE, 'lgb_ensemble_artifact.joblib'))
-print("Saved artifact to Drive.")
+from sklearn.metrics import (
+    f1_score,
+    recall_score,
+    precision_score,
+    classification_report,
+    confusion_matrix,
+    roc_auc_score
+)
+import lightgbm as lgb
+
+# 1) Feature lists (mirroring your XGBoost lists)
+
+LGB_Boost = [
+    'cdmMissDistance', 'cdmPc',
+    'SAT1_CDM_TYPE', 'SAT2_CDM_TYPE',
+    'rso1_objectType', 'rso2_objectType',
+    'org1_displayName', 'org2_displayName',
+    'condition_24H_tca_72H',
+    'condition_Radial_100m',
+    'condition_InTrack_500m', 'condition_CrossTrack_500m',
+    'condition_sat2posUnc_1km', 'condition_sat2Obs_25',
+    'hours_to_tca'      # derived but independent of target columns
+]
+
+LGB_Boost_NoLeak = [
+    'SAT1_CDM_TYPE', 'SAT2_CDM_TYPE',
+    'rso1_objectType', 'rso2_objectType',
+    'org1_displayName', 'org2_displayName',
+    'condition_24H_tca_72H',
+    'condition_Radial_100m',
+    'condition_InTrack_500m', 'condition_CrossTrack_500m',
+    'condition_sat2posUnc_1km', 'condition_sat2Obs_25',
+    'hours_to_tca'
+]
+
+LGB_Boost_NoLeak_Featured = [
+    # Original features
+    'SAT1_CDM_TYPE', 'SAT2_CDM_TYPE',
+    'rso1_objectType', 'rso2_objectType',
+    'org1_displayName', 'org2_displayName',
+    'condition_24H_tca_72H',
+    'condition_Radial_100m',
+    'condition_InTrack_500m', 'condition_CrossTrack_500m',
+    'condition_sat2posUnc_1km', 'condition_sat2Obs_25',
+    'hours_to_tca',
+
+    # Engineered features (no direct Pc/missDistance based ones)
+    'tca_bin',
+    'same_sat_type',
+    'is_debris_pair',
+    'close_all_axes',
+    'risky_uncertainty',
+    'distance_ratio',
+    'object_type_match'
+]
+
+LGB_Boost_Featured = [
+    # Original features
+    'cdmMissDistance', 'cdmPc',
+    'SAT1_CDM_TYPE', 'SAT2_CDM_TYPE',
+    'rso1_objectType', 'rso2_objectType',
+    'org1_displayName', 'org2_displayName',
+    'condition_24H_tca_72H',
+    'condition_Radial_100m',
+    'condition_InTrack_500m', 'condition_CrossTrack_500m',
+    'condition_sat2posUnc_1km', 'condition_sat2Obs_25',
+    'hours_to_tca',
+
+    # Engineered features
+    'log_cdmPc',
+    'inv_miss_distance',
+    'tca_bin',
+    'same_sat_type',
+    'is_debris_pair',
+    'close_all_axes',
+    'risky_uncertainty',
+    'distance_ratio',
+    'object_type_match'
+]
+
+CATEGORICAL_COLS = [
+    'SAT1_CDM_TYPE', 'SAT2_CDM_TYPE',
+    'rso1_objectType', 'rso2_objectType',
+    'org1_displayName', 'org2_displayName'
+]
+
+# ---------- CONFIG ----------
+RANDOM_STATE = 42
+TEST_SIZE = 0.2
 
 
-# %%
-
-# SHAP explainability for one model (tree explainer). Use ensemble average for robustness.
-import shap
-import matplotlib.pyplot as plt
-
-# Use the first model's TreeExplainer for speed. For production, aggregate SHAP across ensemble or use linear approximation.
-explainer = shap.TreeExplainer(models[0])
-sample_idx = X.sample(min(100, len(X)), random_state=SEED).index
-shap_vals = explainer.shap_values(X.loc[sample_idx])
-print("Displaying SHAP summary plot (may take a moment)...")
-shap.summary_plot(shap_vals, X.loc[sample_idx], show=True)
-
-# Example: generate one-line reason for a single row
-def one_line_reason(row, shap_vals_row, feature_names, topk=3):
-    idxs = np.argsort(-np.abs(shap_vals_row))[:topk]
-    parts = []
-    for i in idxs:
-        fname = feature_names[i]
-        val = row[fname]
-        direction = "high" if shap_vals_row[i] > 0 else "low"
-        parts.append(f"{direction} {fname}={val:.2f}")
-    return "Impact: " + ", ".join(parts)
-
-# demo
-i = X.sample(1, random_state=SEED).index[0]
-row = X.loc[i]
-shap_row = explainer.shap_values(row.values.reshape(1,-1))[0]
-print("One-line reason example:", one_line_reason(row, shap_row, feature_cols, topk=3))
+def load_data(path: str) -> pd.DataFrame:
+    print(f"Loading data from: {path}")
+    df = pd.read_excel(path)
+    df[CATEGORICAL_COLS] = df[CATEGORICAL_COLS].astype("category")
+    return df
 
 
-# %%
-
-# Demo prediction API-like function using saved artifact
-import joblib
-art = joblib.load(os.path.join(DRIVE_BASE, 'lgb_ensemble_artifact.joblib'))
-models_loaded = art['models']
-features_loaded = art['features']
-calib = art['calibrator']
-
-def predict_event(feature_dict):
-    # feature_dict maps feature name -> value
-    x = pd.DataFrame([feature_dict])[features_loaded].fillna(-999)
-    # ensemble mean and std
-    preds = np.column_stack([m.predict(x, num_iteration=m.best_iteration) for m in models_loaded])
-    prob_mean = preds.mean(axis=1)[0]
-    prob_std = preds.std(axis=1)[0]
-    prob_cal = calib.predict_proba(x)[:,1][0]
-    return {'prob_mean': float(prob_mean), 'prob_std': float(prob_std), 'prob_calibrated': float(prob_cal)}
-
-# Demo with a random row
-sample = X.sample(1, random_state=SEED).iloc[0].to_dict()
-print("Demo prediction:", predict_event(sample))
+def compute_scale_pos_weight(y: pd.Series) -> float:
+    pos = y.sum()
+    neg = len(y) - pos
+    if pos == 0:
+        return 1.0
+    return neg / pos
 
 
+def save_results(model_name: str, results_dict: dict) -> None:
+    os.makedirs("results", exist_ok=True)
+    out_path = os.path.join("results", f"{model_name}_LGB.json")
+    with open(out_path, "w") as f:
+        json.dump(results_dict, f, indent=4)
+    print(f"\nSaved LightGBM evaluation results to {out_path}")
 
+
+def train_and_evaluate(df: pd.DataFrame, features: list, model_name: str) -> None:
+    X = df[features].copy()
+    y = df['HighRisk'].copy()
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y,
+        test_size=TEST_SIZE,
+        random_state=RANDOM_STATE,
+        stratify=y
+    )
+
+    spw = compute_scale_pos_weight(y_train)
+    print(f"\n[{model_name}] scale_pos_weight:", spw)
+
+    dtrain = lgb.Dataset(
+        X_train,
+        label=y_train,
+        categorical_feature=[c for c in CATEGORICAL_COLS if c in features]
+    )
+    dtest = lgb.Dataset(
+        X_test,
+        label=y_test,
+        reference=dtrain,
+        categorical_feature=[c for c in CATEGORICAL_COLS if c in features]
+    )
+    # LightGBM parameters (fixed, simple, reasonable defaults)
+    params = {
+    "objective": "binary",
+    "metric": "auc",
+    "learning_rate": 0.05,
+    "num_leaves": 63,
+    "max_depth": -1,
+    "feature_fraction": 0.8,
+    "bagging_fraction": 0.8,
+    "bagging_freq": 5,
+    "min_data_in_leaf": 20,
+    "scale_pos_weight": spw,
+    "seed": RANDOM_STATE,
+    "verbosity": -1,
+    "early_stopping_round": 100   
+}
+
+    model = lgb.train(
+    params,
+    dtrain,
+    num_boost_round=2000,
+    valid_sets=[dtest],
+    valid_names=["valid"]
+    )
+
+    
+    # Probabilities
+    y_prob = model.predict(X_test, num_iteration=model.best_iteration)
+
+    # 1) Evaluate at default threshold 0.5
+    thr_default = 0.5
+    y_pred_default = (y_prob >= thr_default).astype(int)
+
+    print(f"\n================= {model_name} @ Threshold = 0.5 =================")
+    print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred_default))
+    print("\nClassification Report:\n", classification_report(y_test, y_pred_default, digits=4))
+
+    rec_default = recall_score(y_test, y_pred_default, zero_division=0)
+    prec_default = precision_score(y_test, y_pred_default, zero_division=0)
+    f1_default = f1_score(y_test, y_pred_default, zero_division=0)
+    acc_default = (y_pred_default == y_test).mean()
+    auc_pr = roc_auc_score(y_test, y_prob)
+    auc_roc = roc_auc_score(y_test, y_prob)
+
+    print(f"Recall: {rec_default:.4f}")
+    print(f"Precision: {prec_default:.4f}")
+    print(f"F1-score: {f1_default:.4f}")
+    print(f"Accuracy: {acc_default:.4f}")
+    print(f"AUC-PR: {auc_pr:.4f}")
+    print(f"AUC-ROC: {auc_roc:.4f}")
+
+    # 2) Scan thresholds for best recall/precision trade-off
+    best_thr = 0.5
+    best_score = 0.0
+
+    for thr in np.arange(0.0, 1.01, 0.01):
+        y_pred_thr = (y_prob >= thr).astype(int)
+        rec = recall_score(y_test, y_pred_thr, zero_division=0)
+        prec = precision_score(y_test, y_pred_thr, zero_division=0)
+        score = rec * 0.7 + prec * 0.3
+        if score > best_score:
+            best_score = score
+            best_thr = thr
+
+    print(f"\nBest threshold for {model_name} = {best_thr:.2f}")
+
+    # 3) Evaluate using best threshold
+    y_pred_best = (y_prob >= best_thr).astype(int)
+
+    print(f"\n================= {model_name} @ BEST Threshold =================")
+    print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred_best))
+    print("\nClassification Report:\n", classification_report(y_test, y_pred_best, digits=4))
+
+    rec_best = recall_score(y_test, y_pred_best, zero_division=0)
+    prec_best = precision_score(y_test, y_pred_best, zero_division=0)
+    f1_best = f1_score(y_test, y_pred_best, zero_division=0)
+    acc_best = (y_pred_best == y_test).mean()
+
+    print(f"Recall: {rec_best:.4f}")
+    print(f"Precision: {prec_best:.4f}")
+    print(f"F1-score: {f1_best:.4f}")
+    print(f"Accuracy: {acc_best:.4f}")
+
+    # Feature importance
+    print("\nFeature importances:")
+    importance = model.feature_importance(importance_type="gain")
+    for feat, imp in sorted(zip(features, importance), key=lambda x: -x[1]):
+        print(f"{feat}: {imp:.4f}")
+
+    results = {
+        "model_name": model_name,
+        "default_threshold": float(thr_default),
+        "best_threshold": float(best_thr),
+        "confusion_matrix_default": confusion_matrix(y_test, y_pred_default).tolist(),
+        "confusion_matrix_best": confusion_matrix(y_test, y_pred_best).tolist(),
+        "metrics_default": {
+            "recall": float(rec_default),
+            "precision": float(prec_default),
+            "f1": float(f1_default),
+            "accuracy": float(acc_default),
+            "auc_pr": float(auc_pr),
+            "auc_roc": float(auc_roc)
+        },
+        "metrics_best_threshold": {
+            "recall": float(rec_best),
+            "precision": float(prec_best),
+            "f1": float(f1_best),
+            "accuracy": float(acc_best)
+        }
+    }
+
+    save_results(model_name, results)
+
+    os.makedirs("models", exist_ok=True)
+    model_path = os.path.join("models", model_name + "_LGB.txt")
+    model.save_model(model_path)
+    print(f"\nLightGBM model saved to {model_path}")
+
+
+DATA_PATH = os.path.join("data", "Merged_Featured_DATA.xlsx")
+
+
+def main():
+    df = load_data(DATA_PATH)
+    print(df.info())
+
+    train_and_evaluate(df, LGB_Boost, "LGB_Boost")
+    train_and_evaluate(df, LGB_Boost_NoLeak, "LGB_Boost_NoLeak")
+    train_and_evaluate(df, LGB_Boost_NoLeak_Featured, "LGB_Boost_NoLeak_Featured")
+    train_and_evaluate(df, LGB_Boost_Featured, "LGB_Boost_Featured")
+
+
+if __name__ == "__main__":
+    main()

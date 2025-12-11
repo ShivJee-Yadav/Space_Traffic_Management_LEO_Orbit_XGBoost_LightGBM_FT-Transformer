@@ -2,6 +2,18 @@ import torch
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 
+from sklearn.metrics import (
+    confusion_matrix,
+    recall_score,
+    precision_score,
+    f1_score,
+    roc_auc_score,
+    classification_report
+)
+import numpy as np
+import json
+import os
+
 from FT_Transformer.model import FTTransformer
 
 # ----------------------------------------------------
@@ -87,7 +99,8 @@ model = FTTransformer(
     num_boolean_features=10
 ).to(device)
 
-model.load_state_dict(torch.load("ft_transformer.pth", map_location=device))
+state_dict = torch.load("models/ft_transformer.pth", map_location=device, weights_only=True)
+model.load_state_dict(state_dict)
 model.eval()
 
 # ----------------------------------------------------
@@ -108,7 +121,7 @@ for idx, row in df.iterrows():
     org1 = torch.tensor([row["org1"]], dtype=torch.long)
     org2 = torch.tensor([row["org2"]], dtype=torch.long)
 
-    bools = torch.tensor([row[bool_cols].values], dtype=torch.float32)
+    bools = torch.tensor(row[bool_cols].values.astype("float32")).unsqueeze(0)
 
     with torch.no_grad():
         pc_pred, class_pred = model(
@@ -130,7 +143,99 @@ for idx, row in df.iterrows():
 # 8. Save predictions
 # ----------------------------------------------------
 results_df = pd.DataFrame(results)
-print(results_df)
+results_df["true_label"] = df["HighRisk"].values
 
+# -----------------------------
+# ✅ Evaluation at threshold = 0.5
+# -----------------------------
+y_true = results_df["true_label"].values
+y_prob = results_df["highrisk_prob"].values
+y_pred = (y_prob >= 0.5).astype(int)
+
+print("\n================= FT-Transformer Evaluation @ Threshold = 0.5 =================")
+print("Confusion Matrix:\n", confusion_matrix(y_true, y_pred))
+print("\nClassification Report:\n", classification_report(y_true, y_pred, digits=4))
+
+rec = recall_score(y_true, y_pred)
+prec = precision_score(y_true, y_pred, zero_division=0)
+f1 = f1_score(y_true, y_pred)
+acc = (y_pred == y_true).mean()
+auc_pr = roc_auc_score(y_true, y_prob)
+auc_roc = roc_auc_score(y_true, y_prob)
+
+print(f"Recall: {rec:.4f}")
+print(f"Precision: {prec:.4f}")
+print(f"F1-score: {f1:.4f}")
+print(f"Accuracy: {acc:.4f}")
+print(f"AUC-PR: {auc_pr:.4f}")
+print(f"AUC-ROC: {auc_roc:.4f}")
+
+# -----------------------------
+# ✅ Scan thresholds for best Recall
+# -----------------------------
+best_thr = 0.5
+best_recall = 0.0
+
+for thr in np.arange(0.0, 1.01, 0.01):
+    y_pred_thr = (y_prob >= thr).astype(int)
+    rec_thr = recall_score(y_true, y_pred_thr, zero_division=0)
+
+    if rec_thr > best_recall:
+        best_recall = rec_thr
+        best_thr = thr
+
+print(f"\n✅ Best threshold based on Recall = {best_thr:.2f} (Recall = {best_recall:.4f})")
+# -----------------------------
+# ✅ Evaluation at BEST threshold
+# -----------------------------
+y_pred_best = (y_prob >= best_thr).astype(int)
+
+print("\n================= FT-Transformer Evaluation @ BEST Threshold =================")
+print("Confusion Matrix:\n", confusion_matrix(y_true, y_pred_best))
+print("\nClassification Report:\n", classification_report(y_true, y_pred_best, digits=4))
+
+rec_best = recall_score(y_true, y_pred_best)
+prec_best = precision_score(y_true, y_pred_best, zero_division=0)
+f1_best = f1_score(y_true, y_pred_best)
+acc_best = (y_pred_best == y_true).mean()
+
+print(f"Recall: {rec_best:.4f}")
+print(f"Precision: {prec_best:.4f}")
+print(f"F1-score: {f1_best:.4f}")
+print(f"Accuracy: {acc_best:.4f}")
+
+# -----------------------------
+# ✅ Save results to JSON
+# -----------------------------
+results_dict = {
+    "model_name": "FT_Transformer",
+    "default_threshold": 0.5,
+    "best_threshold": float(best_thr),
+
+    "confusion_matrix_default": confusion_matrix(y_true, y_pred).tolist(),
+    "confusion_matrix_best": confusion_matrix(y_true, y_pred_best).tolist(),
+
+    "metrics_default": {
+        "recall": float(rec),
+        "precision": float(prec),
+        "f1": float(f1),
+        "accuracy": float(acc),
+        "auc_pr": float(auc_pr),
+        "auc_roc": float(auc_roc)
+    },
+
+    "metrics_best_threshold": {
+        "recall": float(rec_best),
+        "precision": float(prec_best),
+        "f1": float(f1_best),
+        "accuracy": float(acc_best)
+    }
+}
+
+os.makedirs("results", exist_ok=True)
+with open("results/FT_Transformer_metrics.json", "w") as f:
+    json.dump(results_dict, f, indent=4)
+
+print("\nSaved FT-Transformer evaluation to results/FT_Transformer_metrics.json")
 results_df.to_excel("predictions.xlsx", index=False)
-# print("Predictions saved to predictions.xlsx")
+print("Predictions saved to predictions.xlsx")

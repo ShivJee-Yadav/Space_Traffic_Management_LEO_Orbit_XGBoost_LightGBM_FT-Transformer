@@ -5,14 +5,14 @@ class SdcDataset(Dataset):
     def __init__(self, df):
         self.df = df
 
-        self.num_cols = ["miss_distance", "pc"]
+        self.num_cols = ["miss_distance", "pc","hours_to_tca"]
         self.cat_cols = ["sat1_type", "sat2_type", "obj1_type",
                          "obj2_type", "org1", "org2"]
         self.bool_cols = [f"bool_{i}" for i in range(10)]
 
         self.label_oc = "pc"          # FIXED
         self.label_class = "HighRisk"
-
+ 
     def __len__(self):
         return len(self.df)
 

@@ -1,0 +1,39 @@
+{
+    "model_name": "XG_Boost_NoLeak",
+    "default_threshold": 0.5,
+    "best_threshold": 0.0,
+    "confusion_matrix_default": [
+        [
+            108727,
+            5343
+        ],
+        [
+            173,
+            615
+        ]
+    ],
+    "confusion_matrix_best": [
+        [
+            0,
+            114070
+        ],
+        [
+            0,
+            788
+        ]
+    ],
+    "metrics_default": {
+        "recall": 0.7804568527918782,
+        "precision": 0.10322255790533737,
+        "f1": 0.1823302697895049,
+        "accuracy": 0.9519754827700291,
+        "auc_pr": 0.9211750376805764,
+        "auc_roc": 0.9211750376805764
+    },
+    "metrics_best_threshold": {
+        "recall": 1.0,
+        "precision": 0.006860645318567274,
+        "f1": 0.013627795168012729,
+        "accuracy": 0.006860645318567274
+    }
+}

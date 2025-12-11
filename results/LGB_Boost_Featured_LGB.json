@@ -1,0 +1,39 @@
+{
+    "model_name": "LGB_Boost_Featured",
+    "default_threshold": 0.5,
+    "best_threshold": 0.88,
+    "confusion_matrix_default": [
+        [
+            114055,
+            15
+        ],
+        [
+            0,
+            788
+        ]
+    ],
+    "confusion_matrix_best": [
+        [
+            114056,
+            14
+        ],
+        [
+            0,
+            788
+        ]
+    ],
+    "metrics_default": {
+        "recall": 1.0,
+        "precision": 0.9813200498132005,
+        "f1": 0.9905719673161534,
+        "accuracy": 0.9998694039596719,
+        "auc_pr": 0.9999980642396534,
+        "auc_roc": 0.9999980642396534
+    },
+    "metrics_best_threshold": {
+        "recall": 1.0,
+        "precision": 0.9825436408977556,
+        "f1": 0.9911949685534591,
+        "accuracy": 0.9998781103623605
+    }
+}

@@ -1,0 +1,39 @@
+{
+    "model_name": "LGB_Boost_NoLeak",
+    "default_threshold": 0.5,
+    "best_threshold": 0.0,
+    "confusion_matrix_default": [
+        [
+            107359,
+            6711
+        ],
+        [
+            140,
+            648
+        ]
+    ],
+    "confusion_matrix_best": [
+        [
+            0,
+            114070
+        ],
+        [
+            0,
+            788
+        ]
+    ],
+    "metrics_default": {
+        "recall": 0.8223350253807107,
+        "precision": 0.088055442315532,
+        "f1": 0.15907696084448264,
+        "accuracy": 0.940352435180832,
+        "auc_pr": 0.931961222270233,
+        "auc_roc": 0.931961222270233
+    },
+    "metrics_best_threshold": {
+        "recall": 1.0,
+        "precision": 0.006860645318567274,
+        "f1": 0.013627795168012729,
+        "accuracy": 0.006860645318567274
+    }
+}

@@ -1,0 +1,31 @@
+{
+    "model_names": [
+        "XG_Boost",
+        "XG_Boost_NoLeak",
+        "XG_Boost_Featured",
+        "XG_Boost_NoLeak_Featured",
+        "LGB_Boost",
+        "LGB_Boost_NoLeak",
+        "LGB_Boost_Featured",
+        "LGB_Boost_NoLeak_Featured"
+    ],
+    "best_weights": [
+        0.16203901106692983,
+        0.19087092823876595,
+        0.005548840128500368,
+        0.26145285044975797,
+        0.2243966290145935,
+        0.05723899558814828,
+        0.04901347878183046,
+        0.049439266731473634
+    ],
+    "best_threshold": 0.19,
+    "test_metrics": {
+        "auc_pr": 0.9925670181689051,
+        "auc_roc": 0.9999084185104968,
+        "recall": 1.0,
+        "precision": 0.2079155672823219,
+        "f1": 0.3442551332459589
+    },
+    "n_test": 57429
+}

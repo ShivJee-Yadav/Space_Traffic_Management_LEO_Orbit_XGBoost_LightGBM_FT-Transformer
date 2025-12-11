@@ -7,7 +7,6 @@ from sklearn.model_selection import train_test_split
 from optuna.samplers import TPESampler # TPE = Tree‑structured Parzen Estimator
 from sklearn.metrics import average_precision_score # AUC-PR
 from xgboost import XGBClassifier
-from sklearn.preprocessing import LabelEncoder
 
 
 # 1) Feature lists
@@ -90,7 +89,7 @@ def tune_model(df, feature_list, model_name):
     X = df[feature_list]
     y = df['HighRisk']
     ## change this to train, validation and test set After##
-    X_train, X_test, y_train, y_test = train_test_split(
+    X_train, X_val, y_train, y_val = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
 
@@ -124,8 +123,8 @@ def tune_model(df, feature_list, model_name):
         )
 
         model.fit(X_train, y_train)
-        y_prob = model.predict_proba(X_test)[:, 1]
-        score = average_precision_score(y_test, y_prob)
+        y_prob = model.predict_proba(X_val)[:, 1]
+        score = average_precision_score(y_val, y_prob)
         return score
 
     study = optuna.create_study(direction="maximize", sampler=TPESampler(seed=42))
@@ -154,6 +153,6 @@ categorical_cols = [
 df[categorical_cols] = df[categorical_cols].astype("category")
    
 tune_model(df, XG_Boost, "XG_Boost")
-# tune_model(df, XG_Boost_NoLeak, "XG_Boost_NoLeak")
-# tune_model(df, XG_Boost_Featured, "XG_Boost_Featured_data")
-# tune_model(df, XG_Boost_NoLeak_Featured, "XGBoost_NoLeak_Featured")
+tune_model(df, XG_Boost_NoLeak, "XG_Boost_NoLeak")
+tune_model(df, XG_Boost_Featured, "XG_Boost_Featured")
+tune_model(df, XG_Boost_NoLeak_Featured, "XG_Boost_NoLeak_Featured")

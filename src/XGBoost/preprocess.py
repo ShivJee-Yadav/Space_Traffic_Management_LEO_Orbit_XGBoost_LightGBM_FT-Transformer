@@ -6,11 +6,11 @@ DATA_DIR = "data"
 OUTPUT_DIR = "Merged_DATA.xlsx"
 RAW_FILES = [
     "CZ_6A_Events_2024-08-06.xlsx",
-    # "CZ_6A_Events_2024-09-06.xlsx",
-    # "CZ_6A_Events_2024-10-06.xlsx",
-    # "CZ_6A_Events_2025-02-06.xlsx",
-    # "CZ_6A_Events_2025-06-06.xlsx",
-    # "CZ_6A_Events_2025-08-06.xlsx",
+    "CZ_6A_Events_2024-09-06.xlsx",
+    "CZ_6A_Events_2024-10-06.xlsx",
+    "CZ_6A_Events_2025-02-06.xlsx",
+    "CZ_6A_Events_2025-06-06.xlsx",
+    "CZ_6A_Events_2025-08-06.xlsx",
 ]
 
 
@@ -59,11 +59,17 @@ def basic_clean(df: pd.DataFrame) -> pd.DataFrame:
         df['hours_to_tca'] = None
 
 
-    # Fill some obvious missing values (Pure Assumption)
+    # Fill some obvious missing values (Pure Assumption for safety check)
     if 'cdmPc' in df.columns:
         df['cdmPc'] = df['cdmPc'].fillna(df['cdmPc'].median())
     if 'rso2_objectType' in df.columns:
         df['rso2_objectType'] = df['rso2_objectType'].fillna("DEBRIS")
+    if 'rso1_objectType' in df.columns:
+        df['rso1_objectType'] = df['rso1_objectType'].fillna("DEBRIS")
+    if 'org2_displayName' in df.columns:
+        df['org2_displayName'] = df['org2_displayName'].fillna("VACANT")
+    if 'org2_displayName' in df.columns:
+        df['org2_displayName'] = df['org2_displayName'].fillna("VACANT")
     
    
     
@@ -72,7 +78,6 @@ def basic_clean(df: pd.DataFrame) -> pd.DataFrame:
         (df['cdmPc'] > 1e-6) & (df['cdmMissDistance'] < 2000)
     ).astype(int)
     print("\nAfter basic_clean:")
-    print(df.info())
     return df
 
 

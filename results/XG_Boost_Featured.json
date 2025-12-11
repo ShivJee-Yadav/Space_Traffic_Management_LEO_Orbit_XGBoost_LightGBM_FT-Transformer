@@ -1,0 +1,39 @@
+{
+    "model_name": "XG_Boost_Featured",
+    "default_threshold": 0.5,
+    "best_threshold": 0.68,
+    "confusion_matrix_default": [
+        [
+            114052,
+            18
+        ],
+        [
+            0,
+            788
+        ]
+    ],
+    "confusion_matrix_best": [
+        [
+            114054,
+            16
+        ],
+        [
+            0,
+            788
+        ]
+    ],
+    "metrics_default": {
+        "recall": 1.0,
+        "precision": 0.9776674937965261,
+        "f1": 0.9887076537013801,
+        "accuracy": 0.9998432847516063,
+        "auc_pr": 0.9999978083632857,
+        "auc_roc": 0.9999978083632857
+    },
+    "metrics_best_threshold": {
+        "recall": 1.0,
+        "precision": 0.9800995024875622,
+        "f1": 0.9899497487437185,
+        "accuracy": 0.9998606975569834
+    }
+}

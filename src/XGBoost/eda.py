@@ -50,8 +50,8 @@ else:
 
 missing = df.isna().sum().sort_values(ascending=False)
 missing_pct = (df.isna().mean() * 100).sort_values(ascending = False)
-print("Missing values count:\n" , missing)
-print("Missing values percent:\n", missing_pct)
+# print("Missing values count:\n" , missing)
+# print("Missing values percent:\n", missing_pct)
 
 
 ################################################################

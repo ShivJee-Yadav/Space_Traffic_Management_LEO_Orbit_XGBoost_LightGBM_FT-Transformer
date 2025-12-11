@@ -8,7 +8,7 @@
 import os
 import numpy as np
 import pandas as pd
-
+import json
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
     f1_score,
@@ -147,6 +147,20 @@ def load_params_from_txt(path):
     print(params)
     return params
 
+
+# Save Results 
+def save_results(model_name, results_dict):
+    
+    os.makedirs("results", exist_ok=True)
+    out_path = os.path.join("results", f"{model_name}.json")
+
+    with open(out_path, "w") as f:
+        json.dump(results_dict, f, indent=4)
+
+    print(f"\nSaved evaluation results to {out_path}")
+
+
+# Training and Evaluation 
 def train_and_evaluate(X: pd.DataFrame, y: pd.Series, features: list , ModelName : str) -> None:
     X_train, X_test, y_train, y_test = train_test_split(
         X, y,
@@ -180,25 +194,69 @@ def train_and_evaluate(X: pd.DataFrame, y: pd.Series, features: list , ModelName
     # Probabilities and thresholding
     y_prob = model.predict_proba(X_test)[:, 1]
 
-    # Try default threshold 0.5 first
+    
+    # 1) Evaluate at default threshold 0.5
+   
     thr = 0.5
     y_pred = (y_prob >= thr).astype(int)
 
-    
-    best_thr = 0.5
-    best_f1 = 0.0
+    print("\n================= Evaluation @ Threshold = 0.5 =================")
+    print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
+    print("\nClassification Report:\n", classification_report(y_test, y_pred, digits=4))
 
-    print("\nScanning thresholds from 0.00 to 1.00...")
+    # Additional metrics
+    rec = recall_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    acc = (y_pred == y_test).mean()
+    auc_pr = roc_auc_score(y_test, y_prob)
+    auc_roc = roc_auc_score(y_test, y_prob)
+
+    print(f"Recall: {rec:.4f}")
+    print(f"Precision: {prec:.4f}")
+    print(f"F1-score: {f1:.4f}")
+    print(f"Accuracy: {acc:.4f}")
+    print(f"AUC-PR: {auc_pr:.4f}")
+    print(f"AUC-ROC: {auc_roc:.4f}")
+    
+    y_pred = (y_prob >= thr).astype(int)
+
+    # 2). Scan thresholds for best Recall
+
+    best_thr = 0.5
+    best_score = 0.0
 
     for thr in np.arange(0.0, 1.01, 0.01):
-            y_pred_thr = (y_prob >= thr).astype(int)
-            f1 = f1_score(y_test, y_pred_thr, zero_division=0)
+        y_pred_thr = (y_prob >= thr).astype(int)
+        rec = recall_score(y_test, y_pred_thr, zero_division=0)
+        prec = precision_score(y_test, y_pred_thr, zero_division=0)
 
-            if f1 > best_f1:
-                best_f1 = f1
-                best_thr = thr
+        # Balanced metric: prioritize recall but avoid precision collapse
+        score = rec * 0.7 + prec * 0.3
 
-    print(f"\nBest threshold based on F1 = {best_thr:.2f} (F1 = {best_f1:.4f})")
+        if score > best_score:
+            best_score = score
+            best_thr = thr
+
+    print(f"Best threshold = {best_thr:.2f}")
+
+    # 3). Evaluate using BEST threshold
+    # -----------------------------
+    y_pred_best = (y_prob >= best_thr).astype(int)
+
+    print("\n================= Evaluation @ BEST Threshold =================")
+    print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred_best))
+    print("\nClassification Report:\n", classification_report(y_test, y_pred_best, digits=4))
+
+    rec = recall_score(y_test, y_pred_best)
+    prec = precision_score(y_test, y_pred_best)
+    f1 = f1_score(y_test, y_pred_best)
+    acc = (y_pred_best == y_test).mean()
+
+    print(f"Recall: {rec:.4f}")
+    print(f"Precision: {prec:.4f}")
+    print(f"F1-score: {f1:.4f}")
+    print(f"Accuracy: {acc:.4f}")
 
     # Feature importance
     print("\nFeature importances:")
@@ -206,6 +264,35 @@ def train_and_evaluate(X: pd.DataFrame, y: pd.Series, features: list , ModelName
     for feat, imp in sorted(zip(features, importance), key=lambda x: -x[1]):
         print(f"{feat}: {imp:.4f}")
     
+    #  Build results dictionary to save in json format
+    results = {
+        "model_name": ModelName,
+        "default_threshold": 0.5,
+        "best_threshold": float(best_thr),
+
+        "confusion_matrix_default": confusion_matrix(y_test, y_pred).tolist(),
+        "confusion_matrix_best": confusion_matrix(y_test, y_pred_best).tolist(),
+
+        "metrics_default": {
+            "recall": float(recall_score(y_test, y_pred)),
+            "precision": float(precision_score(y_test, y_pred, zero_division=0)),
+            "f1": float(f1_score(y_test, y_pred)),
+            "accuracy": float((y_pred == y_test).mean()),
+            "auc_pr": float(roc_auc_score(y_test, y_prob)),
+            "auc_roc": float(roc_auc_score(y_test, y_prob))
+        },
+
+        "metrics_best_threshold": {
+            "recall": float(recall_score(y_test, y_pred_best)),
+            "precision": float(precision_score(y_test, y_pred_best, zero_division=0)),
+            "f1": float(f1_score(y_test, y_pred_best)),
+            "accuracy": float((y_pred_best == y_test).mean())
+        }
+    }
+
+    # Save Result in Resut/ModelName
+    save_results(ModelName, results)
+    # save Model in models/ModelName
     ModelDIR = os.path.join("models",ModelName) + ".json"
     model.save_model(ModelDIR)
     print(f"\nXGBoost model saved to {ModelDIR}")
@@ -218,14 +305,14 @@ def main():
     X, y= preprocess(df , XG_Boost)
     train_and_evaluate(X, y, XG_Boost , "XG_Boost")
 
-    # X, y= preprocess(df , XG_Boost_NoLeak , )
-    # train_and_evaluate(X, y, XG_Boost_NoLeak , "XG_Boost_NoLeak")
+    X, y= preprocess(df , XG_Boost_NoLeak , )
+    train_and_evaluate(X, y, XG_Boost_NoLeak , "XG_Boost_NoLeak")
     
-    # X, y= preprocess(df , XG_Boost_NoLeak_Featured)
-    # train_and_evaluate(X, y, XG_Boost_NoLeak_Featured , "XG_Boost_NoLeak_Featured")
+    X, y= preprocess(df , XG_Boost_NoLeak_Featured)
+    train_and_evaluate(X, y, XG_Boost_NoLeak_Featured , "XG_Boost_NoLeak_Featured")
     
-    # X, y= preprocess(df , XG_Boost_Featured)
-    # train_and_evaluate(X, y, XG_Boost_Featured , "XG_Boost_Featured")
+    X, y= preprocess(df , XG_Boost_Featured)
+    train_and_evaluate(X, y, XG_Boost_Featured , "XG_Boost_Featured")
 
 
 if __name__ == "__main__":
