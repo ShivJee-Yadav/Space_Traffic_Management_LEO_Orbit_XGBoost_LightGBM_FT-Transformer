@@ -44,7 +44,7 @@ Given the increasing presence of satellites and debris within Low Earth Orbit, t
 [![Seaborn](https://img.shields.io/badge/Seaborn-328699?style=for-the-badge&logo=seaborn&logoColor=white)](https://seaborn.pydata.org/)
 
 **Development Tools:**
-[![Jupyter Notebook](https://img.shields.io/badge/Jupyter-F37626?style=for-the-badge&logo=jupyter&logoColor=white)](https://jupyter.org/)
+[![VS Code](https://img.shields.io/badge/VS%20Code-0078D4?style=for-the-badge&logo=visualstudiocode&logoColor=white)](https://code.visualstudio.com/)
 [![Google Colab](https://img.shields.io/badge/Colab-F9AB00?style=for-the-badge&logo=googlecolab&logoColor=white)](https://colab.research.google.com/)
 
 ## 🚀 Quick Start
