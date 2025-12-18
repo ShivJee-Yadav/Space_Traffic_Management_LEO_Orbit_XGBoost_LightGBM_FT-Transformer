@@ -68,8 +68,8 @@ with st.sidebar:
 
 
 st.write("### Enter New CDM Data")
-# st.write("Current working directory:", os.getcwd())
-# st.write("Files:", os.listdir())
+st.write("Current working directory:", os.getcwd())
+st.write("Files:", os.listdir())
 
 with st.expander("Enter Manual Input"):
     with st.form("cdm_form"):
