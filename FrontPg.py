@@ -64,7 +64,8 @@ with st.expander('Sample Data'):
     st.write(sample_df)
 with st.expander("About Data"):
     st.write("Orginal data Shape : :green[***(574289,33)***]")
-    st.image("outputs\Plots\Correlation_Heatmap_Top.png")
+    HeatMap_Img_Path = os.path.join(os.path.dirname(__file__), "outputs", "Plots" ,"Correlation_Heatmap_Top.png" )
+    st.image(HeatMap_Img_Path)
 
 with st.sidebar:
     st.header("About app")
