@@ -3,17 +3,18 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 import os
+from src.XGBoost.preprocess import basic_clean
+from src.XGBoost.feature_engineering import Feature_Engineering
 
 st.write(os.getcwd())
 st.write(os.listdir())
 
 st.title("Space Traffic Management , Find Collision Probability and Risk Factor")
 st.header("Space Traffic Management")
-from src.XGBoost.preprocess import basic_clean
-from src.XGBoost.feature_engineering import Feature_Engineering
 
 
-st.title("CDM Input Form")
+
+# st.title("CDM Input Form")
 
 # example_data = {
 #     "cdmMissDistance": 597,
@@ -53,21 +54,19 @@ st.title("CDM Input Form")
 
 # st.dataframe(pd.DataFrame([example_data]))
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-file_path = os.path.join(BASE_DIR, "data", "sample_Featured_data.csv")
-
-sample_df = pd.read_csv(file_path)
+# file_path = os.path.join(os.path.dirname(__file__), "data", "sample_Featured_data.csv")
+# sample_df = pd.read_csv(file_path)
     
-with st.expander('Sample Data'):
-    st.write("Shape of Sample Data :",sample_df.shape)
-    st.write(sample_df)
-with st.expander("About Data"):
-    st.write("Orginal data Shape : :green[***(574289,33)***]")
-    st.image("outputs\Plots\Correlation_Heatmap_Top.png")
+# with st.expander('Sample Data'):
+#     st.write("Shape of Sample Data :",sample_df.shape)
+#     st.write(sample_df)
+# with st.expander("About Data"):
+#     st.write("Orginal data Shape : :green[***(574289,33)***]")
+#     st.image("outputs\Plots\Correlation_Heatmap_Top.png")
 
-with st.sidebar:
-    st.header("About app")
-    st.write("Created By Nexus IIT-J")
+# with st.sidebar:
+#     st.header("About app")
+#     st.write("Created By Nexus IIT-J")
 
 
 st.write("### Enter New CDM Data")
