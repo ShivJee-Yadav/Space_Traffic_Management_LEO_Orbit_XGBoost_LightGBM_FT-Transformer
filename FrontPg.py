@@ -52,10 +52,11 @@ st.header("Space Traffic Management")
 
 # st.dataframe(pd.DataFrame([example_data]))
 
-file_path = os.path.join(os.path.dirname(__file__), "data", "sample_Featured_data.csv")
-st.write("### Enter New CDM Data")
-st.write("Current working directory:", os.getcwd())
-st.write("Files:", os.listdir())
+file_path = os.path.join(os.path.dirname(__file__), "data", "sample_Featured_Data.csv")
+# st.write("Current working directory:", os.getcwd())
+# st.write("Files:", os.listdir())
+# st.write(os.listdir("data"))
+
 sample_df = pd.read_csv(file_path)
     
 with st.expander('Sample Data'):
