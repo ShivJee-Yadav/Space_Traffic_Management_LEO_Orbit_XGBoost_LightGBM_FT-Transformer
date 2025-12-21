@@ -16,15 +16,9 @@ page_bg = """
 st.set_page_config(
     layout="wide" , 
     initial_sidebar_state="expanded",
-    # menu_items={
-    #     'Get Help': 'https://www.extremelycoolapp.com/help',
-    #     'Report a bug': "https://www.extremelycoolapp.com/bug",
-    #     'About': "# This is a header. This is an *extremely* cool app!"
-    # }
     )
-# st.markdown(page_bg, unsafe_allow_html=True)
 
-main_page = st.Page("FrontPg.py",title="main Page",default=True )
+main_page = st.Page("FrontPg.py",title="Main Page",default=True )
 About = st.Page("About.py",title="About" )
 Future_Development = st.Page("FD.py",title="Incoming development" )
 pg = st.navigation(
