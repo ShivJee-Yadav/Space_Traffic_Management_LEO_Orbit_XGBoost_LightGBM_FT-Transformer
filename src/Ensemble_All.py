@@ -56,8 +56,11 @@ def load_xgb_probs(model_name, feature_list, data_df):
     model_file = model_name + ".json"
     model_path = os.path.join("models", model_file)
     data_df[CATEGORICAL_COLS] = data_df[CATEGORICAL_COLS].astype("category")
-    
+    for col in feature_list:
+        if data_df[col].dtype in ["int64", "int32"]:
+            data_df[col] = data_df[col].astype("float32")
     # Load Booster
+    st.write(data_df.info())
     booster = xgb.Booster()
     booster.load_model(model_path)
 
