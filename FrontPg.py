@@ -46,8 +46,29 @@ with Mcol1:
                 condition_sat2Obs_25 = st.selectbox("condition_sat2Obs_25",["True","False"])
 
             submitted = st.form_submit_button("Submit")
+        # Try parsing safely
+        creationTsOfCDM = pd.to_datetime(
+        creationTsOfCDM,
+        format="%Y-%m-%d %H:%M:%S",
+        errors="coerce"   # invalid formats become NaT
+        )
 
-        if submitted:
+        if pd.isna(creationTsOfCDM):
+            st.warning("⚠️ Please enter a valid datetime in format YYYY-MM-DD HH:MM:SS")
+            # Optionally set a default
+        cdmTca = pd.Timestamp.now()
+        cdmTca = pd.to_datetime(
+        cdmTca,
+        format="%Y-%m-%d %H:%M:%S",
+        errors="coerce"   # invalid formats become NaT
+        )
+
+        if pd.isna(cdmTca):
+            st.warning("⚠️ Please enter a valid datetime in format YYYY-MM-DD HH:MM:SS")
+            # Optionally set a default
+        cdmTca = pd.Timestamp.now()
+        
+        if submitted and not (pd.isna(creationTsOfCDM) or pd.isna(cdmTca)):
             new_row = {
                 "cdmMissDistance": cdmMissDistance,
                 "cdmPc": cdmPc,
