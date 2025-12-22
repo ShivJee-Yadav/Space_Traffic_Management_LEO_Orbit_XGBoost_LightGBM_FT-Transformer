@@ -52,25 +52,39 @@ import os
 import streamlit as st
 import xgboost as xgb
 
-def load_xgb_probs(model_name, feature_list, data_df):
+def load_xgb_probs(model_name, feature_list, data_df, categorical_cols=None):
     model_file = model_name + ".json"
     model_path = os.path.join("models", model_file)
-    data_df[CATEGORICAL_COLS] = data_df[CATEGORICAL_COLS].astype("category")
+
+    # Cast categorical columns
+    if categorical_cols:
+        for col in categorical_cols:
+            if col in data_df.columns:
+                data_df[col] = data_df[col].astype("category")
+
+    # Cast numeric columns to float32
     for col in feature_list:
         if data_df[col].dtype in ["int64", "int32"]:
             data_df[col] = data_df[col].astype("float32")
+
+    # Ensure no object dtypes sneak in
+    bad_cols = [c for c in feature_list if data_df[c].dtype == "object"]
+    if bad_cols:
+        st.write("Warning: object columns found, converting to category:", bad_cols)
+        for col in bad_cols:
+            data_df[col] = data_df[col].astype("category")
+
     # Load Booster
-    st.write(data_df.info())
     booster = xgb.Booster()
     booster.load_model(model_path)
 
     # Convert to DMatrix
-    dmatrix = xgb.DMatrix(data_df[feature_list])
+    dmatrix = xgb.DMatrix(data_df[feature_list], enable_categorical=True)
 
     # Predict probabilities
     probs = booster.predict(dmatrix)
-
     return probs
+
 # -----------------------------
 # Helper: Load LightGBM model probs
 # -----------------------------
