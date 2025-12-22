@@ -5,6 +5,7 @@ import os
 import json
 import numpy as np
 import pandas as pd
+import streamlit as st
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
     average_precision_score, recall_score, precision_score,
@@ -47,19 +48,19 @@ MODEL_LIST = [
 # -----------------------------
 # Helper: Load XGBoost model probs
 # -----------------------------
-from pathlib import Path
 
 def load_xgb_probs(model_name, feature_list, data_df):
-    project_root = Path(__file__).resolve().parent.parent
-    model_path = project_root / "models" / f"{model_name}.json"
-    print("Loading model from:", model_path)
-
+    # base_dir = os.path.dirname(os.path.abspath(__file__))
+    model_file = model_name + ".json"
+    model_path = os.path.join("models", model_file)
+    
+    st.write("Loading model from:", model_path)
+    
     model = XGBClassifier()
-    model.load_model(str(model_path))
-
+    model.load_model(model_path)
+    
     X = data_df[feature_list]
     return model.predict_proba(X)[:, 1]
-
 # -----------------------------
 # Helper: Load LightGBM model probs
 # -----------------------------
