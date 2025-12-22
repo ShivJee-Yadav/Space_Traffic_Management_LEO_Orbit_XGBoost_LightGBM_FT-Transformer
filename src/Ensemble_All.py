@@ -73,9 +73,7 @@ def load_xgb_probs(model_name, feature_list, data_df):
 #         st.write("Files inside models directory:", model_files)
 #     else:
 #         st.write("No 'models' directory found at:", models_dir)
-
-    
-    model = xgb.Booster()
+    model = xgb.XGBClassifier()
     model.load_model(model_path)
     X = data_df[feature_list]
     return model.predict_proba(X)[:, 1]
