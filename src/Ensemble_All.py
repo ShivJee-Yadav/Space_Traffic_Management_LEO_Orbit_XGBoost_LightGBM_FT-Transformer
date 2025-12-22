@@ -14,7 +14,7 @@ from sklearn.metrics import (
 import optuna
 from xgboost import XGBClassifier
 import lightgbm as lgb
-
+import xgboost as xgb
 
 from src.LightGBM.Light_GBM import (
     LGB_Boost, LGB_Boost_NoLeak,
@@ -48,10 +48,14 @@ MODEL_LIST = [
 # Helper: Load XGBoost model probs
 # -----------------------------
 
+import os
+import streamlit as st
+import xgboost as xgb
+
 def load_xgb_probs(model_name, feature_list, data_df):
     model_file = model_name + ".json"
     model_path = os.path.join("models", model_file)
-    
+
     if os.path.exists(model_path):
         st.write("Model file found:", model_path)
     else:
@@ -60,21 +64,25 @@ def load_xgb_probs(model_name, feature_list, data_df):
     st.write("Loading model from:", model_path)
     current_dir = os.getcwd()
     st.write("Current working directory:", current_dir)
-    files = os.listdir(current_dir)
-    st.write("Files in this directory:")
-    st.write(files)
-    models_dir = os.path.join(current_dir, "models")
+    st.write("Files in this directory:", os.listdir(current_dir))
 
-# Check if models folder exists
+    models_dir = os.path.join(current_dir, "models")
     if os.path.exists(models_dir):
-        model_files = os.listdir(models_dir)
-        st.write("Files inside models directory:", model_files)
+        st.write("Files inside models directory:", os.listdir(models_dir))
     else:
         st.write("No 'models' directory found at:", models_dir)
-    model = XGBClassifier()
-    model.load_model(model_path)
-    X = data_df[feature_list]
-    return model.predict_proba(X)[:, 1]
+
+    # Load Booster
+    booster = xgb.Booster()
+    booster.load_model(model_path)
+
+    # Convert to DMatrix
+    dmatrix = xgb.DMatrix(data_df[feature_list])
+
+    # Predict probabilities
+    probs = booster.predict(dmatrix)
+
+    return probs
 # -----------------------------
 # Helper: Load LightGBM model probs
 # -----------------------------
