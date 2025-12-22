@@ -51,7 +51,7 @@ MODEL_LIST = [
 def load_xgb_probs(model_name, feature_list, data_df):
     base_dir = os.path.dirname(os.path.abspath(__file__))
     model_file = model_name + ".json"
-    model_path = os.path.join(base_dir, "..", "models", model_file)
+    model_path = os.path.join("..", "models", model_file)
     
     print("Loading model from:", model_path)
     
