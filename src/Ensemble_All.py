@@ -14,7 +14,7 @@ from sklearn.metrics import (
 import optuna
 from xgboost import XGBClassifier
 import lightgbm as lgb
-
+import xgboost as xgb
 
 
 from src.LightGBM.Light_GBM import (
@@ -54,29 +54,29 @@ def load_xgb_probs(model_name, feature_list, data_df):
     model_file = model_name + ".json"
     model_path = os.path.join("models", model_file)
     model_path = os.path.join("models", "XG_Boost.json")
-    if os.path.exists(model_path):
-        st.write("Model file found:", model_path)
-    else:
-        st.write("Model file NOT found:", model_path)
+#     if os.path.exists(model_path):
+#         st.write("Model file found:", model_path)
+#     else:
+#         st.write("Model file NOT found:", model_path)
 
-    st.write("Loading model from:", model_path)
-    current_dir = os.getcwd()
-    st.write("Current working directory:", current_dir)
-    files = os.listdir(current_dir)
-    st.write("Files in this directory:")
-    st.write(files)
-    models_dir = os.path.join(current_dir, "models")
+#     st.write("Loading model from:", model_path)
+#     current_dir = os.getcwd()
+#     st.write("Current working directory:", current_dir)
+#     files = os.listdir(current_dir)
+#     st.write("Files in this directory:")
+#     st.write(files)
+#     models_dir = os.path.join(current_dir, "models")
 
-# Check if models folder exists
-    if os.path.exists(models_dir):
-        model_files = os.listdir(models_dir)
-        st.write("Files inside models directory:", model_files)
-    else:
-        st.write("No 'models' directory found at:", models_dir)
+# # Check if models folder exists
+#     if os.path.exists(models_dir):
+#         model_files = os.listdir(models_dir)
+#         st.write("Files inside models directory:", model_files)
+#     else:
+#         st.write("No 'models' directory found at:", models_dir)
 
-    model = XGBClassifier()
-    model.load_model(model_path)
     
+    model = xgb.Booster()
+    model.load_model(model_path)
     X = data_df[feature_list]
     return model.predict_proba(X)[:, 1]
 # -----------------------------
