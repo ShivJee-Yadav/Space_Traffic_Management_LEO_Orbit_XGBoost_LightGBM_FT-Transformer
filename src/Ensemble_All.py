@@ -55,23 +55,8 @@ import xgboost as xgb
 def load_xgb_probs(model_name, feature_list, data_df):
     model_file = model_name + ".json"
     model_path = os.path.join("models", model_file)
-
-    if os.path.exists(model_path):
-        st.write("Model file found:", model_path)
-    else:
-        st.write("Model file NOT found:", model_path)
-
-    st.write("Loading model from:", model_path)
-    current_dir = os.getcwd()
-    st.write("Current working directory:", current_dir)
-    st.write("Files in this directory:", os.listdir(current_dir))
-
-    models_dir = os.path.join(current_dir, "models")
-    if os.path.exists(models_dir):
-        st.write("Files inside models directory:", os.listdir(models_dir))
-    else:
-        st.write("No 'models' directory found at:", models_dir)
-
+    data_df[CATEGORICAL_COLS] = data_df[CATEGORICAL_COLS].astype("category")
+    
     # Load Booster
     booster = xgb.Booster()
     booster.load_model(model_path)
