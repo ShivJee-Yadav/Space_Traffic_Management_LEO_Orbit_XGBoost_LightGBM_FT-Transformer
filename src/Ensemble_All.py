@@ -51,28 +51,29 @@ MODEL_LIST = [
 
 def load_xgb_probs(model_name, feature_list, data_df):
     # base_dir = os.path.dirname(os.path.abspath(__file__))
-    model_file = model_name + ".json"
-    model_path = os.path.join("models", model_file)
-    model_path = os.path.join("models", "XG_Boost.json")
-#     if os.path.exists(model_path):
-#         st.write("Model file found:", model_path)
-#     else:
-#         st.write("Model file NOT found:", model_path)
+    # model_file = model_name + ".json"
+    # model_path = os.path.join("models", model_file)
+    model_path = f"models/{name}.json"
 
-#     st.write("Loading model from:", model_path)
-#     current_dir = os.getcwd()
-#     st.write("Current working directory:", current_dir)
-#     files = os.listdir(current_dir)
-#     st.write("Files in this directory:")
-#     st.write(files)
-#     models_dir = os.path.join(current_dir, "models")
+    if os.path.exists(model_path):
+        st.write("Model file found:", model_path)
+    else:
+        st.write("Model file NOT found:", model_path)
 
-# # Check if models folder exists
-#     if os.path.exists(models_dir):
-#         model_files = os.listdir(models_dir)
-#         st.write("Files inside models directory:", model_files)
-#     else:
-#         st.write("No 'models' directory found at:", models_dir)
+    st.write("Loading model from:", model_path)
+    current_dir = os.getcwd()
+    st.write("Current working directory:", current_dir)
+    files = os.listdir(current_dir)
+    st.write("Files in this directory:")
+    st.write(files)
+    models_dir = os.path.join(current_dir, "models")
+
+# Check if models folder exists
+    if os.path.exists(models_dir):
+        model_files = os.listdir(models_dir)
+        st.write("Files inside models directory:", model_files)
+    else:
+        st.write("No 'models' directory found at:", models_dir)
     model = xgb.XGBClassifier()
     model.load_model(model_path)
     X = data_df[feature_list]
