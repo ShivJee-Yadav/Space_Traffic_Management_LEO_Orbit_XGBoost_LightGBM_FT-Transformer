@@ -55,25 +55,16 @@ import xgboost as xgb
 def load_xgb_probs(model_name, feature_list, data_df, categorical_cols=None):
     model_file = model_name + ".json"
     model_path = os.path.join("models", model_file)
-
-    # Cast categorical columns
-    if categorical_cols:
-        for col in categorical_cols:
-            if col in data_df.columns:
-                data_df[col] = data_df[col].astype("category")
+    data_df[CATEGORICAL_COLS] = data_df[CATEGORICAL_COLS].astype("category")
+    st.write(data_df.dtypes)
+    
 
     # Cast numeric columns to float32
     for col in feature_list:
         if data_df[col].dtype in ["int64", "int32"]:
             data_df[col] = data_df[col].astype("float32")
 
-    # Ensure no object dtypes sneak in
-    bad_cols = [c for c in feature_list if data_df[c].dtype == "object"]
-    if bad_cols:
-        st.write("Warning: object columns found, converting to category:", bad_cols)
-        for col in bad_cols:
-            data_df[col] = data_df[col].astype("category")
-
+   
     # Load Booster
     booster = xgb.Booster()
     booster.load_model(model_path)
